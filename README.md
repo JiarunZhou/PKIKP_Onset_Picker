@@ -1,5 +1,5 @@
 # Deep-Learning Phase-Onset Picker for Deep Earth Seismology: PKIKP Waves
-This is the repo for article: Deep-Learning Phase-Onset Picker for Deep Earth Seismology: PKIKP Waves
+This is the repo for article: Deep-Learning Phase-Onset Picker for Deep Earth Seismology: PKIKP Waves published on Journal of Geophysical Research: Solid Earth.
 
 ## Content
 - Trained model:
