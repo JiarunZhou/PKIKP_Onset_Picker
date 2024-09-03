@@ -2,11 +2,11 @@
 This is the repo for article: Deep-Learning Phase-Onset Picker for Deep Earth Seismology: PKIKP Waves published on Journal of Geophysical Research: Solid Earth.
 
 ## Content
-- Trained model:
-- Training data sets:
-- Sliding-window picker:
-- Demo notebook:
-- PKIKP waveform examples:
+- Trained model;
+- Training data sets;
+- Sliding-window picker;
+- Demo notebook;
+- PKIKP waveform examples;
 
 ## Recommended pre-processing of input waveforms for PKIKP onset picking
 - Format: .sac
