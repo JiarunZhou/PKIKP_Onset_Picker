@@ -20,7 +20,7 @@ def read_args():
     parser.add_argument("--save_pick", default=None, type=str, help="File outputting auto picks and qualities")
     parser.add_argument("--save_plot", default=None, type=str, help="Directory plotting waveforms labelled with auto picks")
     
-    # Don't change if no specific need
+    # Don't modify if no specific need
     parser.add_argument("--model_dir", default="TrainedModel.keras", type=str, help="Imported Model")
     parser.add_argument("--sampling_rate", default=40, type=int, help="Sampling rate (Hz)")
     parser.add_argument("--prediction", default=60, type=float, help="Onset location predicted by the Earth model, e.g., ak135 (s)")
@@ -45,8 +45,6 @@ def pre_process(data, sampling_rate = 40, len_input = 50,
     if window_start < 0:
         raise ValueError("The input waveform is too short (Default: 150 s) or the cut window is too long (Default: 50 s).")
     for tr in data:
-        if np.floor(len(tr)/sampling_rate) != 150 or prediction != 60:
-            warnings.warn("You're not using the default input data format. This may result in imprecise or unreliable results.")
         tr = tr[window_start*sampling_rate:(window_start+len_input)*sampling_rate]
         tr = tr/np.max(abs(tr))
         st.append(tr)
@@ -181,6 +179,9 @@ if __name__ == "__main__":
     
     ## Load model
     model = load_model(args.model_dir)
+    
+    if args.len_input != 50:
+        warnings.warn("The non-default input waveform length may result in imprecise or unreliable results.")
     
     ## Pre-process data
     st_processed = pre_process(st, args.sampling_rate, args.len_input, 
