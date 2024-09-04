@@ -8,10 +8,11 @@ This is the repo for article: Deep-Learning Phase-Onset Picker for Deep Earth Se
 - Demo notebook;
 - PKIKP waveform examples;
 
-## Recommended pre-processing of input waveforms for PKIKP onset picking
+## Recommended Pre-processing
+- Original data: 150 s length, PKIKP onset predicted by ak135 located at 60 s
 - Format: .sac
 - Channel: Vertical channel
-- Length: 50 s around ak135 prediction
+- Waveform length input to the picker: 50 s around ak135 prediction
 - Sampling rate: 40 Hz
 - Frequency filtering: 0.5 - 2 Hz
 
