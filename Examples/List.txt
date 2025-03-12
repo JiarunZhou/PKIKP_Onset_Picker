@@ -1,3 +1,0 @@
-Examples/PKP_320.Z8.BHZ.SAC
-Examples/PKP_DLV.RM.BHZ.SAC
-Examples/PKP_NE22.YP.BHZ.SAC

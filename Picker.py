@@ -1,5 +1,5 @@
-import warnings
-# warnings.filterwarnings("ignore")
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 
 import argparse
 from tensorflow.keras.models import load_model
@@ -21,7 +21,7 @@ def read_args():
     parser.add_argument("--save_plot", default=None, type=str, help="Directory plotting waveforms labelled with auto picks")
     
     # Don't modify if no specific need
-    parser.add_argument("--model_dir", default="TrainedModel.keras", type=str, help="Imported Model")
+    parser.add_argument("--model_dir", default="Trained_model.keras", type=str, help="Imported Model")
     parser.add_argument("--sampling_rate", default=40, type=int, help="Sampling rate (Hz)")
     parser.add_argument("--prediction", default=60, type=float, help="Onset location predicted by the Earth model, e.g., ak135 (s)")
     parser.add_argument("--t_shift", default=0.1, type=float, help="Step of the sliding window (s)")
@@ -163,7 +163,66 @@ def auto_pick_plot(tr, model, save_name = "Plot.jpg"):
     ax1.set_ylabel("Quality",fontsize = 15) 
     ax1.legend([l1],["Sliding-window \npicks"],fontsize = 13,loc = "upper right")
     plt.savefig(save_name,dpi=300,bbox_inches = "tight")  
- 
+
+
+def picking_animation(tr, model, len_input = 50, sampling_rate = 40, t_shift = 0.1, save_name = "Animation.mp4"):  
+    from matplotlib.animation import FuncAnimation,FFMpegWriter
+    
+    len_window = 20
+    
+    ## Get instantaneous picks
+    tt, ts = sliding_window_picking(tr[0], model, only_valid = False)
+    ts = [ts[j] + tt[j] for j in range(len(ts))]
+    picks,dbscan_labels,counts = cluster_preds(np.array(ts))
+
+    ## plot
+    fig,ax = plt.subplots(2,figsize = (10,8),sharex = True)
+    ax[0].set_ylim(-1.05,1.05)
+    ax[0].plot(np.arange(0,len_input,1/sampling_rate),tr[0])
+#     ax[0].axvline(onset_in_window, c= "r",lw = 2, ls = "--", label = "Human picked arrival")
+    ln1, = ax[0].plot([],[], c= "g",lw = 2, label = "Instantaneous CNN pick")
+    ln2, = ax[0].plot([], [], 'tab:grey',label = "Sliding window")
+    ln3, = ax[0].plot([], [], 'tab:grey')
+    ax[0].legend(loc = "upper right")
+    ax[1].set_ylim(0,1)
+    ax[1].set_xlabel("Time (s)",fontsize = 15)
+    ax[1].set_ylabel("Quality",fontsize = 15)
+    ax[1].set_xticks(np.arange(0,51,5))
+    ln4, = ax[1].plot([],[],"go",ms=1.5)
+    collection = ax[0].fill_between([0,len_window],-1.05,1.05,facecolor = "lightgrey",alpha = 0.5)
+    xdata3,ydata3 = [],[]
+    def update(frame):
+        xdata = ts[frame]
+        ydata = np.linspace(-1.05,1.05,100)
+        xdata2 = tt[frame]
+        xdata3.append(picks[dbscan_labels[frame]])
+        dbscan_label_f = len([d for d in dbscan_labels[0:frame+1] if d == dbscan_labels[frame]])
+
+        if picks[dbscan_labels[frame]] != 0 and dbscan_labels[frame] != -1:
+            try:
+                len_ydata3 = dbscan_label_f/(len_window/t_shift)
+            except ZeroDivisionError:
+                len_ydata3 = 0
+        else:
+            len_ydata3 = 0
+        ydata3.append(len_ydata3)
+
+        dummy = ax[0].fill_between([xdata2,xdata2+len_window], -1.05, 1.05, alpha=0)
+        dp = dummy.get_paths()[0]
+        dummy.remove()
+        #update the vertices of the PolyCollection
+        collection.set_paths([dp.vertices])
+
+        ln1.set_data(xdata,ydata)
+        ln2.set_data([xdata2],ydata)
+        ln3.set_data([xdata2+len_window],ydata)
+        ln4.set_data(xdata3,ydata3)
+
+        return ln1,ln2,ln3,ln4
+
+    ani = FuncAnimation(fig, func = update, frames=len(ts), blit=True, repeat = False)
+    writer = FFMpegWriter(fps = 15)
+    ani.save(save_name,writer = writer,dpi = 300)
     
     
 if __name__ == "__main__":
@@ -189,10 +248,12 @@ if __name__ == "__main__":
     
     ## Auto picking
     optimal_pick, quality = picker(st_processed, model, args.sampling_rate, args.t_shift, return_optimal = args.return_optimal)
+    pick_quality = np.array([optimal_pick,quality]).T
     
     ## Output results
     for i,f in enumerate(files):
-        print(f,"\n","Auto picked PKIKP onset: %.2f s picking quality: %.2f"%(optimal_pick[i], quality[i]))
+        print(f,"\n","Auto picked PKIKP onset: %.2f s; Picking quality: %.2f"%\
+              (pick_quality[i,0], pick_quality[i,1]))
         print("---------------")
         
         if args.save_plot != None:
@@ -200,7 +261,7 @@ if __name__ == "__main__":
             auto_pick_plot([st_processed[i]], model, save_name)
         
     if args.save_pick != None:
-        np.savetxt(args.save_pick, [optimal_pick,quality])
+        np.savetxt(args.save_pick, pick_quality, fmt = "%.2f")
 
         
     

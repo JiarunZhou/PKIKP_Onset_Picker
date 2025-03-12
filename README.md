@@ -3,10 +3,12 @@ This is the repo for article: Deep-Learning Phase-Onset Picker for Deep Earth Se
 
 ## Content
 - Trained model;
-- Training data sets;
-- Sliding-window picker;
-- Demo notebook;
-- PKIKP waveform examples;
+- Training datasets;
+- Examples of real PKIKP waveforms;
+- Functions for CNN training;
+- Functions for sliding-window picking;
+- Demo notebook.
+
 
 ## Recommended Pre-processing
 - Original data: 150 s length, PKIKP onset predicted by ak135 located at 60 s
