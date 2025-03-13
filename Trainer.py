@@ -51,6 +51,18 @@ def CNN_picker(npts, normalize = True, lr = 0.001):
     
     return model
 
+def plot_hist_curve(hist, save_plot):
+    train_loss = hist.history["loss"]
+    val_loss = hist.history["val_loss"]
+    plt.figure()
+    plt.plot(range(len(train_loss)),train_loss, label = "Train_loss")
+    plt.plot(range(len(val_loss)),val_loss, label = "Validation_loss")
+    plt.xlabel("Epoch")
+    plt.legend()
+    if save_plot != False:
+        plt.savefig(save_plot, dpi = 300)
+    plt.show()
+
 def trainer(x, y, model, 
             epochs = 20, 
             validation_split = 0.2, 
@@ -81,14 +93,6 @@ def trainer(x, y, model,
     print("Training starts at",UTCDateTime(start_training_time),"; costing:",performance_time)
 
     if plot_hist == True:
-        #Loss curves
-        train_loss = hist.history["loss"]
-        val_loss = hist.history["val_loss"]
-        plt.figure()
-        plt.plot(range(len(train_loss)),train_loss, label = "Train_loss")
-        plt.plot(range(len(val_loss)),val_loss, label = "Validation_loss")
-        plt.xlabel("Epoch")
-        plt.legend()
-        if save_plot != False:
-            plt.savefig(save_plot, dpi = 300)
-        plt.show()
+        plot_hist_curve(hist, save_plot)
+      
+    return hist
