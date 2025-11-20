@@ -23,7 +23,7 @@ def read_args():
     # Don't modify if no specific need
     parser.add_argument("--model_dir", default="Trained_model.keras", type=str, help="Imported Model")
     parser.add_argument("--sampling_rate", default=40, type=int, help="Sampling rate (Hz)")
-    parser.add_argument("--prediction", default=60, type=float, help="Onset location predicted by the Earth model, e.g., ak135 (s)")
+    parser.add_argument("--prediction_at", default=60, type=float, help="Onset location predicted by the Earth model, e.g., ak135 (s)")
     parser.add_argument("--t_shift", default=0.1, type=float, help="Step of the sliding window (s)")
     
     args = parser.parse_args()
@@ -31,25 +31,30 @@ def read_args():
     return args
 
 
-def pre_process(data, sampling_rate = 40, len_input = 50, 
-                freq_min = 0.5, freq_max= 2, prediction = 60, detrend = True):
+def pre_process(stream, sampling_rate = 40, freq_min = 0.5, freq_max= 2, detrend = True,
+                len_input = 50, prediction_at = 60,
+                ellipticity_correct = []
+               ):
     
     # Pre-process
-    data.resample(sampling_rate)
-    if detrend == True: data.detrend(type="linear")
-    data.filter(type="bandpass", freqmin=freq_min, freqmax=freq_max)
+    stream.resample(sampling_rate)
+    if detrend == True: stream.detrend(type="linear")
+    stream.filter(type="bandpass", freqmin=freq_min, freqmax=freq_max)
     
     #Cut
-    st = []
-    window_start = int(prediction-len_input*0.5)
+    waveforms = []
+    window_start = int((prediction_at-len_input/2)*sampling_rate)
     if window_start < 0:
         raise ValueError("The input waveform is too short (Default: 150 s) or the cut window is too long (Default: 50 s).")
-    for tr in data:
-        tr = tr[window_start*sampling_rate:(window_start+len_input)*sampling_rate]
+    for i, tr in enumerate(stream):
+        if ellipticity_correct: 
+            window_start += ellipticity_correct[i]*sampling_rate
+        window_end = window_start+len_input*sampling_rate
+        tr = tr[window_start:window_end]
         tr = tr/np.max(abs(tr))
-        st.append(tr)
+        waveforms.append(tr)
         
-    return np.array(st)  
+    return np.array(waveforms)  
 
 
 def sliding_window_picking(tr, model, sampling_rate = 40, len_window = 20, t_shift = 0.1, only_valid = True):
@@ -110,18 +115,20 @@ def picker(data, model, sampling_rate = 40, t_shift = 0.1, eps = 0.1, return_opt
     if type(model) == str:
         model = load_model(model)
     
-    for tr in data:  
+    for i, tr in enumerate(data):  
         # Predict
         tt, ts_valid = sliding_window_picking(tr, model, 
                                               sampling_rate, len_window, t_shift, only_valid = True)
         
         # Cluster picks
         picks,dbscan_labels,counts = cluster_preds(np.array(ts_valid), eps=eps, min_neighbors=5)
-        if len(picks) == 0:
-            raise ValueError("No auto pick is returned.")
-            
+
         # Quality of picks
-        qualities = counts/(len_window/t_shift)
+        if len(picks) != 0:
+            qualities = counts/(len_window/t_shift)
+        else:
+            picks = qualities = np.zeros(1)
+            print(f"No auto pick is returned at trace {i}. Save 0.")
 
         picks_highest_quality.append(picks[np.argmax(qualities)])
         qualities_highest.append(np.max(qualities))
@@ -134,23 +141,28 @@ def picker(data, model, sampling_rate = 40, t_shift = 0.1, eps = 0.1, return_opt
         return picks_all, qualities_all   
 
     
-def auto_pick_plot(tr, model, save_name = "Plot.jpg"):
-    
+def auto_pick_plot(tr, model, save_name = ""):
+    tr = np.array(tr)
+    tr = tr.reshape(-1, tr.shape[-1])
+    if len(tr) != 1:
+        print("multiple traces input, will only plot the first.")
+        tr = tr[:1, :]  
+        
     auto_picks, qualities = picker(tr, model, return_optimal = False)
     optimal_pick = auto_picks[0][np.argmax(qualities)]
     
-    fig = plt.figure(figsize=(7, 6))
+    fig = plt.figure(figsize=(7, 4))
     gs = fig.add_gridspec(2, 1,height_ratios=(3, 2),hspace=0.1)
     ax0 = fig.add_subplot(gs[0])
     ax0.plot(tr[0],c = "k",lw = 1.2)
-    ax0.axvline(optimal_pick*40,c= "g",lw = 1.5,label = "Automatic pick: %.2f s"%optimal_pick)
+    ax0.axvline(optimal_pick*40,c= "g",lw = 1.5,label = "Chosen auto pick: %.2f s"%optimal_pick)
 #     ax0.axvline(onset_in_window*40,c = "r",lw = 1.5,label = "Manual pick: %.2f s"%onset_in_window)
     ax0.set_xticks(ticks = np.arange(0,2001,200), labels = [])
     ax0.set_yticks([-1,0,1])
     ax0.set_yticklabels([-1,0,1],fontsize = 14)
     ax0.set_ylabel("Amplitude",fontsize = 15) 
     ax0.set(xlim=(0,2000))
-    ax0.legend(fontsize = 13,loc = "upper left")
+    ax0.legend(fontsize = 12,loc = "upper left")
 
     ax1 = fig.add_subplot(gs[1])
     ax1.axvline(optimal_pick*40,c= "g",lw = 1.5,ls = "dotted")
@@ -161,8 +173,11 @@ def auto_pick_plot(tr, model, save_name = "Plot.jpg"):
     ax1.set_xticklabels(np.arange(-25,26,5),fontsize = 14)
     ax1.set_xlabel("Time w.r.t. ak135 prediction (s)",fontsize = 15)
     ax1.set_ylabel("Quality",fontsize = 15) 
-    ax1.legend([l1],["Sliding-window \npicks"],fontsize = 13,loc = "upper right")
-    plt.savefig(save_name,dpi=300,bbox_inches = "tight")  
+    ax1.set(xlim=(0, 2000))
+    ax1.legend([l1],["Cumulative \ninstantaneous picks"],fontsize = 12,loc = "upper left")
+    if save_name:
+        plt.savefig(save_name,dpi=300,bbox_inches = "tight")  
+    plt.show()
 
 
 def picking_animation(tr, model, len_input = 50, sampling_rate = 40, t_shift = 0.1, save_name = "Animation.mp4"):  
@@ -223,8 +238,7 @@ def picking_animation(tr, model, len_input = 50, sampling_rate = 40, t_shift = 0
     ani = FuncAnimation(fig, func = update, frames=len(ts), blit=True, repeat = False)
     writer = FFMpegWriter(fps = 15)
     ani.save(save_name,writer = writer,dpi = 300)
-    
-    
+
 if __name__ == "__main__":
     args = read_args()
     if args.len_input <= 20:
@@ -244,7 +258,7 @@ if __name__ == "__main__":
     
     ## Pre-process data
     st_processed = pre_process(st, args.sampling_rate, args.len_input, 
-                               args.freq_min, args.freq_max, args.prediction)
+                               args.freq_min, args.freq_max, args.prediction_at)
     
     ## Auto picking
     optimal_pick, quality = picker(st_processed, model, args.sampling_rate, args.t_shift, return_optimal = args.return_optimal)
