@@ -31,8 +31,13 @@ def read_args():
     return args
 
 
-def pre_process(stream, sampling_rate = 40, freq_min = 0.5, freq_max= 2, detrend = True,
-                len_input = 50, prediction_at = 60,
+def pre_process(stream, 
+                sampling_rate = 40, 
+                len_input = 50, 
+                freq_min = 0.5, 
+                freq_max= 2,
+                prediction_at = 60, 
+                detrend = True,
                 ellipticity_correct = []
                ):
     
@@ -57,7 +62,13 @@ def pre_process(stream, sampling_rate = 40, freq_min = 0.5, freq_max= 2, detrend
     return np.array(waveforms)  
 
 
-def sliding_window_picking(tr, model, sampling_rate = 40, len_window = 20, t_shift = 0.1, only_valid = True):
+def sliding_window_picking(tr, 
+                           model, 
+                           sampling_rate = 40, 
+                           len_window = 20, 
+                           t_shift = 0.1, 
+                           only_valid = True
+                          ):
     n_shift = t_shift * sampling_rate
     n_length = len_window*sampling_rate
     
@@ -85,7 +96,10 @@ def sliding_window_picking(tr, model, sampling_rate = 40, len_window = 20, t_shi
         return tt,ts
     
 
-def cluster_preds(predictions, eps=0.1, min_neighbors=5):
+def cluster_preds(predictions, 
+                  eps=0.1, 
+                  min_neighbors=5
+                 ):
     dbscan = DBSCAN(eps, min_samples=min_neighbors) ## Perform DBSCAN cluster
     dbscan.fit(predictions.reshape(-1,1))
     clusters, counts = np.unique(dbscan.labels_, return_counts=True)
@@ -104,7 +118,13 @@ def cluster_preds(predictions, eps=0.1, min_neighbors=5):
     return picks, dbscan_labels, counts    
     
     
-def picker(data, model, sampling_rate = 40, t_shift = 0.1, eps = 0.1, return_optimal = True):
+def picker(data, 
+           model, 
+           sampling_rate = 40, 
+           t_shift = 0.1, 
+           eps = 0.1, 
+           return_optimal = True
+          ):
     len_window = 20 # model input length = sliding window length
     
     picks_highest_quality = []
@@ -141,7 +161,10 @@ def picker(data, model, sampling_rate = 40, t_shift = 0.1, eps = 0.1, return_opt
         return picks_all, qualities_all   
 
     
-def auto_pick_plot(tr, model, save_name = ""):
+def auto_pick_plot(tr, 
+                   model, 
+                   save_name = ""
+                  ):
     tr = np.array(tr)
     tr = tr.reshape(-1, tr.shape[-1])
     if len(tr) != 1:
@@ -180,7 +203,13 @@ def auto_pick_plot(tr, model, save_name = ""):
     plt.show()
 
 
-def picking_animation(tr, model, len_input = 50, sampling_rate = 40, t_shift = 0.1, save_name = "Animation.mp4"):  
+def picking_animation(tr, 
+                      model, 
+                      len_input = 50, 
+                      sampling_rate = 40, 
+                      t_shift = 0.1, 
+                      save_name = "Animation.mp4"
+                     ):  
     from matplotlib.animation import FuncAnimation,FFMpegWriter
     
     len_window = 20
